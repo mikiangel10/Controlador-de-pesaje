@@ -10,7 +10,7 @@
 #define led_lcd 34
 #define salida1 46
 #define salida2 44
-#define salida3 42  
+#define salida3 42
 #define salida4 40
 
 #define MODO_MAX 1  //el numero de modo principal mayor posible
@@ -44,7 +44,7 @@ const char calfac_mem[3]={0xa,0xc,0xe};
 char cal_cel=0;//celda a calibrar
 float tara[3]={0,0,0};//array para hacer tara en la calibracion
 float peso_cal[3]={0,0,0};//array para hacer la calibracion
-
+float cal_val[3]={0,0,0};//array con los valores para calibrar
 
 void setup() {
   pinMode(led_lcd, OUTPUT);
@@ -53,20 +53,21 @@ void setup() {
   pinMode(salida[2], OUTPUT);
   pinMode(salida[3], OUTPUT);
   lcd.begin(16,2);
-  
-  SoftPWMBegin();  
+
+  SoftPWMBegin();
   SoftPWMSet(led_lcd, 0);
   SoftPWMSetFadeTime(led_lcd, 1000, 1000);
   SoftPWMSet(led_lcd, led_lcd_pow);
   Teclado.addEventListener(keypadEvent);
   Teclado.setHoldTime(1000);
   Teclado.setDebounceTime(100);
-  
+
   lcd.print("Balanzas MAYVA");
   lcd.setCursor(0,1);
   lcd.print("Iniciando...");
-  
+
   for (int n=0;n<3;n++){
+    delay(800);
     celdas[n].begin();
     celdas[n].start(500);
     if(celdas[n].getTareTimeoutFlag()){
@@ -82,9 +83,9 @@ void setup() {
       lcd.setCursor(0,1);
       lcd.print("Celda ");
       lcd.print(n+1);
-      lcd.print(" OK  "); 
+      lcd.print(" OK  ");
     }
-    
+
   }
   delay(2000);
   lcd.setCursor(0,1);
@@ -92,14 +93,14 @@ void setup() {
   lcd.setCursor(0,0);
   lcd.print(F("MAYVA      P:"));
   lcd.print(texto);
-//     
+//
 
-  
+
 }
 
 void loop() {
   key=Teclado.getKey();
-  
+
   switch(modo){
     /**
       Modo 0 es Modo Programa
@@ -113,28 +114,28 @@ void loop() {
       Modo 34 es la pantalla de peso en la calibracion para toda la balanza
     **/
     case 0:  //modo programa
-    
+
       lcd.setCursor(0,0);
       lcd.print(F("Modo 0          "));
       break;
- 
+
     case 1:  //modo manual
       lcd.setCursor(0,0);
-      lcd.print(F("MAYVA    Kg:     "));
+      lcd.print(F("Inicio    Kg:     "));
       lcd.setCursor(12,0);
       lcd.print(texto);
       lcd.setCursor(0,1);
       lcd.print("Kg:");
       lcd.print(peso,2);
-      
+
       imprimir_salidas();
-      
+
       peso=actualizar_peso();
-      
+
       break;
 
     case 21: //seleccionando motor
-  
+
       if(key<0x40 && key>0x29){
         lcd.print(key);
         lcd.print(" ");
@@ -142,21 +143,21 @@ void loop() {
         lcd.setCursor(6,1);
         lcd.print(motor);
       }
-     
-      
+
+
       imprimir_salidas();
       break;
     case 22: //cargando
-    
-      peso=actualizar_peso();      
+
+      peso=actualizar_peso();
       lcd.setCursor(0,0);
-        if (meta>0){ 
+        if (meta>0){
           if(peso>=meta){
-          apagar_salidas(); 
+          apagar_salidas();
           motor=0;
           modo=1;
           break;
-        }     
+        }
         lcd.print(F("Carg.M:"));
         lcd.print(motor);
         lcd.print(" Kg:");
@@ -170,12 +171,16 @@ void loop() {
       lcd.print(peso,2);
       lcd.print(" ");
       imprimir_salidas();
-             
+
       break;
-      
+
     case 30:
-      
-      
+
+      //inico de calibración
+      //dejar
+      //Con A se acepta y pasa a estado 31
+      //con C se sale
+      //Con * se borra el numero de celda
       lcd.setCursor(0,0);
       lcd.print(F("Num Celda a Cal.  "));
       lcd.setCursor(0,1);
@@ -184,22 +189,26 @@ void loop() {
       lcd.setCursor(1,1);
       lcd.print(F("    (0=Balanza)   "));
       break;
-      
+
     case 31:
-      
+
+      //Se debe descargar la Balanza
+      //y despues presionar A para pasar a estado 32
+      //Con C se cancela
       celdas[cal_cel].update();
       lcd.setCursor(0,0);
-      lcd.print(F ("Tara Celda      "));
-      lcd.setCursor(12,0);
+      lcd.print(F ("Tarar Celda      "));
+      lcd.setCursor(13,0);
       lcd.print(cal_cel + 1 );
       lcd.setCursor(0,1);
-      tara[cal_cel]=celdas[cal_cel].getData();
+      tara[cal_cel]=celdas[cal_cel].getData();//
       lcd.print(tara[cal_cel]);
       lcd.print(F("              "));
       break;
 
     case 32:
-
+    //se debe cargar la balanza con una masa conocida
+    // e introducir el peso en el display
       celdas[cal_cel].update();
       lcd.setCursor(0,0);
       lcd.print(F("Carga Celda     "));
@@ -207,13 +216,15 @@ void loop() {
       lcd.print(cal_cel + 1);
       lcd.setCursor(0,1);
       peso_cal[cal_cel]=celdas[cal_cel].getData();
-      lcd.print(peso_cal[cal_cel]);      
-      
-      
-      
+      lcd.print(peso_cal[cal_cel]);
+      lcd.setCursor(8,1);
+      lcd.print(F("Kg:"));
+      lcd.print(texto);
+
+
   }
-  
-  
+
+
 }
 
 void keypadEvent(KeypadEvent tecla){
@@ -223,7 +234,7 @@ void keypadEvent(KeypadEvent tecla){
         led_lcd_pow=led_lcd_pow-10;
         SoftPWMSet(led_lcd, led_lcd_pow);
       }else if(tecla=='#'){  //aumenta la luminosidad del display
-        led_lcd_pow=led_lcd_pow+10;  
+        led_lcd_pow=led_lcd_pow+10;
         SoftPWMSet(led_lcd, led_lcd_pow);
       }else if(tecla=='1' && modo==21){    //seleccion de motor en modo manual
         estado_salida[0]=!estado_salida[0];
@@ -239,11 +250,11 @@ void keypadEvent(KeypadEvent tecla){
         modo=22;
       }else if(tecla=='C'){// && (modo==0 || modo==1)){
         modo=30;
-        
+
       }
       hold=1;
       break;
-      
+
     case RELEASED:
       if (tecla=='#' && !hold && modo<=MODO_MAX){
         modo--;
@@ -253,7 +264,7 @@ void keypadEvent(KeypadEvent tecla){
           modo=MODO_MAX;
         }
       }
-      
+
       hold=0;
       break;
     case PRESSED:
@@ -265,11 +276,10 @@ void keypadEvent(KeypadEvent tecla){
         texto[n]=' ';
       }else if(tecla=='C'){
         if( (modo==22 || modo==21)){
-      
           apagar_salidas();
-          motor=0; 
-          modo=1; 
-        }else if(modo >= 30 && modo <= 33){
+          motor=0;
+          modo=1;
+        }else if(modo >= 30 && modo <= 36){
           modo=1;
         }
       }else if(tecla=='A' ){
@@ -279,38 +289,47 @@ void keypadEvent(KeypadEvent tecla){
           lcd.print(F("Motor?     "));
           meta=0;
           for(int n=0;n<(sizeof(texto));n++){
-            if(texto[n]==' '){              
+            if(texto[n]==' '){
               meta=0;
             }else{
               meta=meta*10;
               meta+=(texto[n]-0x30);
             }
           }
-           
+
         }else if(modo==21){
           if (motor>0){
-            estado_salida[motor-0x31]=1; 
-            modo=22;            
+            estado_salida[motor-0x31]=1;
+            modo=22;
           }
-        }else if(modo==30){
-          if(texto[3]=='0'){
+        }else if(modo==30){//menu de celda a calibrar
+          if(texto[3]=='0'){//si se ingresa 0 se calibra toda la balanza
             modo=33;
           }else{
-            cal_cel=texto[3]-0x31;
+            cal_cel=texto[3]-0x31;//sino se elige una de las 3 celdas
             modo=31;
           }
-        }else if(modo==31){
+        }else if(modo==31){//pantalla de tara de la celda
           modo=32;
-          celdas[cal_cel].begin();
-          
-          
+          for (int i=0;i<sizeof(texto);i++){
+            texto[i]=' '; }
+          celdas[cal_cel].tare();//se tara la celda
+
+
+        }else if(modo==32){
+         peso=atof(texto);
+         celdas[cal_cel].refreshDataSet();
+         float newCalVal = celdas[cal_cel].getNewCalibration(peso);
+         celdas[cal_cel].setCalFactor(newCalVal);
+         EEPROM.update(calfac_mem[cal_cel], newCalVal);
+         modo=0;
         }
-       
-      }else if(modo==0 || modo==1 || modo==30){
+
+      }else if(modo==0 || modo==1 || modo==30 || modo==32){
         for (int n='0';n<='9';n++){
           if(tecla==n){
             for(int n1=0;n1<sizeof(texto)-1;n1++){
-               texto[n1]=texto[n1+1];               
+               texto[n1]=texto[n1+1];
             }
             texto[sizeof(texto)-1]=tecla;
           }
@@ -318,7 +337,7 @@ void keypadEvent(KeypadEvent tecla){
       }
       break;
   }
-  
+
 }
 
 float actualizar_peso(void){
@@ -347,4 +366,3 @@ void apagar_salidas(void){
         }
 
 }
-                                                 
